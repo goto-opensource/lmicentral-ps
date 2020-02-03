@@ -1,0 +1,41 @@
+{
+    "PerFunctionMetrics": [
+        {
+            "TestCoverage": {
+                "WarningThreshold": 0,
+                "FailThreshold": 0,
+                "HigherIsBetter": true
+            }
+        },
+        {
+            "CommandsMissed": {
+                "WarningThreshold": 0,
+                "FailThreshold": 0,
+                "HigherIsBetter": true
+            }
+        }
+    ],
+    "OverallMetrics": [
+        {
+            "NumberOfFailedTests": {
+                "WarningThreshold": 0,
+                "FailThreshold": 0,
+                "HigherIsBetter": false
+            }
+        },
+        {
+            "TestCoverage": {
+                "WarningThreshold": 0,
+                "FailThreshold": 0,
+                "HigherIsBetter": true
+            }
+        },
+        {
+            "TestsPassRate": {
+                "WarningThreshold": 0,
+                "FailThreshold": 0,
+                "HigherIsBetter": false
+            }
+        }
+    ]
+}
