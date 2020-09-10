@@ -50,6 +50,7 @@ function Get-CentralDomain {
     } else {
         $local:LoginDomain = 'accounts.logme.in'
     }
+
     $local:CentralDomain
     $local:LoginDomain
 }
@@ -62,7 +63,11 @@ function Connect-LMICentral {
         [Parameter(Mandatory=$true)]
         [pscredential]$Credential,
         [Parameter(Mandatory=$false)]
-        [Switch]$NoSessionVariable=$false
+        [Switch]$NoSessionVariable=$false,
+        [Parameter(Mandatory=$false)]
+        [Switch]$mfa=$false,
+        [Parameter(Mandatory=$false)]
+        [int]$Seconds=15
     )
 
     $CentralDomain, $LoginDomain = Get-CentralDomain
@@ -100,6 +105,21 @@ function Connect-LMICentral {
 
     Write-Verbose "Authenticating at $LoginDomain"
     $local:AuthResponse = Invoke-WebRequest -WebSession $LoginSession -Uri (Build-Uri "https://$LoginDomain/auth.aspx" $local:LoginParams) -Body $local:LoginForm -Method Post -ContentType "application/x-www-form-urlencoded"
+
+    if ($mfa -and $local:AuthResponse.StatusCode -eq 200 ) {
+        $local:AuthResponse = Invoke-WebRequest -WebSession $LoginSession -Uri (Build-Uri "https://$LoginDomain/ClientService.svc/CheckPushAuthenticationStatus") -Method Post
+
+        ForEach ($Count in (1..$Seconds))
+        {
+            Write-Progress -Id 1 -Activity "Waiting for push notification confirm" -Status "Waiting for $Seconds seconds, $($Seconds - $Count) left" -PercentComplete (($Count / $Seconds) * 100)
+            Start-Sleep -Seconds 1
+        }
+
+        Write-Progress -Id 1 -Activity "Waiting for push notification confirm" -Status "Completed" -PercentComplete 100 -Completed
+
+        $local:LoginParams.Add('sent', 1)
+        $local:AuthResponse = Invoke-WebRequest -WebSession $LoginSession -Uri (Build-Uri "https://$LoginDomain/authentication/totpauth.aspx" $local:LoginParams)
+    }
 
     if ($local:AuthResponse.StatusCode -eq 200) {
         Write-Host "Login Successful."
@@ -207,7 +227,7 @@ function Invoke-LMICentralMethod {
     $local:CentralDomain = (Get-CentralDomain)[0]
 
     if (-not $Session) {
-        Write-Verbose "No Session parameter is specifed using global LMI Central Session"
+        Write-Verbose "No Session parameter is specifed, using global LMI Central Session"
         $local:LMICentralSession = $Global:LMICentralSession
     } else {
         Write-Verbose "Using Session from parameter"
@@ -234,6 +254,11 @@ function Invoke-LMICentralMethod {
 
     Write-Verbose "--- REQUEST ---"
     Write-Verbose "Body=$local:Body"
+    Write-Verbose "Method=$Method"
+    Write-Verbose "Headers=$local:Headers"
+    foreach($item in $local:Headers.Keys) { Write-Verbose "  $item $($local:Headers[$item])"}
+    Write-Verbose "Uri=$local:Url"
+    Write-Verbose "WebSession.Cookies=$($local:WebSession.Cookies.GetCookies($local:Url))"
 
     try {
         if ($Method -eq 'GET') {
